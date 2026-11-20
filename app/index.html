@@ -3,23 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GTA VI trophy checklist</title>
+<title>Leonida Legend — GTA VI Trophy Guide &amp; Tracker</title>
+<meta name="description" content="Offline guide and tracker for all 55 Grand Theft Auto VI PlayStation 5 trophies: cited guides, a platinum roadmap, missable flags and a progress checklist.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>GTA VI trophy checklist</h1>
-  <p id="progress">0 of 55 earned</p>
+<header class="hero">
+  <div class="hero-text">
+    <p class="kicker">Grand Theft Auto VI · PlayStation 5 · Offline guide &amp; tracker</p>
+    <h1>Leonida Legend</h1>
+    <p class="tagline">All 55 trophies with their official names, descriptions and grades, a cited guide for each one, a five-step roadmap to the platinum, and the one missable trophy flagged before it can bite you.</p>
+  </div>
+  <div class="hero-progress" aria-label="Your progress">
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Progress ring">
+        <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+        <circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle>
+      </svg>
+      <div class="ring-label"><span id="ring-count">0</span><small>of 55</small></div>
+    </div>
+    <div class="grade-counts" id="grade-counts"></div>
+    <p class="hero-note" id="hero-note">Tick trophies as you earn them — progress saves in this browser.</p>
+  </div>
 </header>
-<div class="controls">
-  <label>Grade <select id="grade"><option value="all">All</option><option value="platinum">Platinum</option><option value="gold">Gold</option><option value="silver">Silver</option><option value="bronze">Bronze</option></select></label>
-  <button id="export" type="button">Export progress</button>
-  <label class="import">Import progress <input id="import" type="file" accept="application/json"></label>
+
+<div class="alert-missable" id="missable-alert">
+  <strong>⚠ One missable trophy:</strong> <span class="alert-name">Positive Mental Attitude</span> — a Chapter 1 meditation with Lucia at Jason's house may count toward its 18 spots, and there is no mission replay. Meditate when Chapter 1 offers it. <button type="button" class="alert-jump" id="alert-jump">See its guide</button>
 </div>
-<table>
-  <thead><tr><th>Earned</th><th>Trophy</th><th>Grade</th><th>How to get it</th></tr></thead>
-  <tbody id="rows"></tbody>
-</table>
-<script type="module" src="app.js"></script>
+
+<nav class="tabs" role="tablist" aria-label="Views">
+  <button type="button" class="tab is-active" data-view="checklist" role="tab">Checklist &amp; guides</button>
+  <button type="button" class="tab" data-view="roadmap" role="tab">Platinum roadmap</button>
+  <button type="button" class="tab" data-view="about" role="tab">About &amp; sources</button>
+</nav>
+
+<main>
+  <section id="view-checklist" class="view is-active">
+    <div class="toolbar">
+      <label class="search">Search
+        <input id="search" type="search" placeholder="Trophy, mission, activity…" autocomplete="off">
+      </label>
+      <div class="chips" id="kind-chips" role="group" aria-label="Filter by kind"></div>
+      <label>Grade
+        <select id="grade-filter">
+          <option value="all">All grades</option>
+          <option value="platinum">Platinum</option>
+          <option value="gold">Gold</option>
+          <option value="silver">Silver</option>
+          <option value="bronze">Bronze</option>
+        </select>
+      </label>
+      <label>Status
+        <select id="status-filter">
+          <option value="all">All</option>
+          <option value="earned">Earned</option>
+          <option value="unearned">Not yet</option>
+        </select>
+      </label>
+      <label>Sort
+        <select id="sort-order">
+          <option value="official">Official order</option>
+          <option value="grade">Grade, rarest first</option>
+          <option value="roadmap">Roadmap order</option>
+        </select>
+      </label>
+      <label class="toggle"><input id="spoiler-toggle" type="checkbox" checked> Spoiler shield: hide story trophies until earned</label>
+    </div>
+    <div class="toolbar secondary">
+      <button type="button" id="export-btn">Export progress</button>
+      <label class="import-btn">Import progress <input id="import-file" type="file" accept="application/json,.json"></label>
+      <button type="button" id="reset-btn">Reset progress</button>
+      <span class="result-count" id="result-count"></span>
+    </div>
+    <div id="trophy-list" class="trophy-list"></div>
+    <p id="empty-state" class="empty" hidden></p>
+  </section>
+
+  <section id="view-roadmap" class="view">
+    <h2>Roadmap to the platinum</h2>
+    <p class="view-intro">One playthrough, roughly 200 hours, no online trophies (PowerPyx; GTABase). Free roam continues after the finale and there is no mission replay, so the order below front-loads the single missable moment and leaves everything else to a relaxed cleanup. Cheats disable trophies and saving — keep them off (PowerPyx).</p>
+    <div id="roadmap-list"></div>
+  </section>
+
+  <section id="view-about" class="view">
+    <h2>About this guide</h2>
+    <div id="about-body"></div>
+  </section>
+</main>
+
+<footer>
+  <p>An unofficial, fan-made guide. Trophy names and descriptions are shown as PlayStation publishes them; every guide is written for this app in its own words and cites its sources. No Rockstar Games artwork or logos are used. Works fully offline: progress lives only in your browser's localStorage.</p>
+</footer>
+
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
