@@ -1,36 +1,58 @@
-// A working gta6-trophy-guide-01 entry (Node 22, standard library only): the guide is this directory's app/ folder,
-// plain static files a browser opens at app/index.html (ES modules, CSS, no build step), offline: it loads nothing
-// over the network, and its trophy list and guides are app/data/trophies.json. The program hands it in: it copies app/
-// and screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the judge reads (your
-// screenshots, the first load's files and bytes, and your source), with the vendored make.fun library. Leave
-// vendor/makefun-frontend.ts as it is: the scorer requires dossier.json to be byte for byte what its own copy writes.
+// Leonida Legend — hand-in program for the gta6-trophy-guide-01 entry (Node 22, standard library
+// only, nothing installed, no network).
 //
-// Only the plumbing, not a winner: a plain checklist of the 55 trophies with a one-line hint each. Write a real guide
-// for every trophy in your own words, a roadmap to the platinum, filters and a spoiler setting in app/, put 3 or 4 PNG
-// or JPEG screenshots of it in screenshots/ (the first by name is the cover; shots.json says which views this
-// starter's were taken of), and run it.
+// The guide itself is the static app in app/ beside this file: a browser opens app/index.html and
+// everything runs from those files. This program's one job is to hand the entry in exactly the way
+// the bounty asks: copy app/ and screenshots/ into the output directory and write dossier.json
+// there with the kit's vendored buildDossier, untouched, because the scorer rebuilds the dossier
+// with its own copy of that library and compares the two byte for byte.
 //
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
+// In the grader the output directory is /output; outside it, MAKEFUN_OUTPUT_DIR stands in:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// The program runs twice in grading and both runs must write the same bytes, so it writes nothing
+// time-dependent: the dossier is a pure function of the files it copies.
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const repoDir = fileURLToPath(new URL('.', import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-mkdirSync(out, { recursive: true });
-cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
-mkdirSync(join(out, 'screenshots'), { recursive: true });
-if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
+// The caps the scorer enforces, passed to buildDossier so a hand-in that would be refused fails
+// here first, with the library's own words, instead of at grading.
+const DOSSIER_OPTIONS = {
+  text_max_bytes: 163840,
+  screenshots: { max: 4, max_bytes: 262144 },
+  app_max_files: 993,
+  app_max_bytes: 50331648,
+};
 
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
-// scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files and directories in app/ or
-// 48 MiB of app files: app/ counts beside /output's own 1000-entry cap, its screenshots/ and dossier.json).
-writeFileSync(
-  join(out, 'dossier.json'),
-  buildDossier(out, { text_max_bytes: 163840, screenshots: { max: 4, max_bytes: 262144 }, app_max_files: 993, app_max_bytes: 50331648 }),
-);
+function requirePath(path: string, what: string): void {
+  if (!existsSync(path)) throw new Error(`cannot hand in: ${what} is missing (${path})`);
+}
+
+function copyTree(from: string, to: string): void {
+  mkdirSync(to, { recursive: true });
+  cpSync(from, to, { recursive: true });
+}
+
+function main(): void {
+  const appDir = join(repoDir, 'app');
+  const shotsDir = join(repoDir, 'screenshots');
+  requirePath(join(appDir, 'index.html'), 'the app (app/index.html)');
+  requirePath(join(appDir, 'data', 'trophies.json'), 'the trophy data (app/data/trophies.json)');
+  requirePath(shotsDir, 'the screenshots folder');
+  const shotCount = readdirSync(shotsDir).filter((name) => !name.startsWith('.')).length;
+  if (shotCount < 3 || shotCount > 4) {
+    throw new Error(`cannot hand in: screenshots/ holds ${shotCount} files, the bounty wants 3 or 4`);
+  }
+
+  mkdirSync(outputDir, { recursive: true });
+  copyTree(appDir, join(outputDir, 'app'));
+  copyTree(shotsDir, join(outputDir, 'screenshots'));
+  writeFileSync(join(outputDir, 'dossier.json'), buildDossier(outputDir, DOSSIER_OPTIONS));
+}
+
+main();

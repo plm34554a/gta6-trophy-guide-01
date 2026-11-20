@@ -1,52 +1,168 @@
-// A plain checklist of the 55 trophies: tick one off and it stays ticked (localStorage); export and import the ticks.
-const KEY = 'gta6-trophy-checklist';
-const rows = document.getElementById('rows');
-const grade = document.getElementById('grade');
-let earned = new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]'));
-const doc = await (await fetch('data/trophies.json')).json();
+// Leonida Legend — the GTA VI trophy guide and tracker.
+//
+// Boot: load app/data/trophies.json (a file beside this one, so the app works fully offline behind
+// any static file server), restore the reader's progress from localStorage, then render. The
+// checklist, the roadmap and the About view all read the same data; ticking a trophy anywhere
+// updates everywhere, and every change is saved at once.
 
-function save() {
-  localStorage.setItem(KEY, JSON.stringify([...earned]));
+import { loadState, saveState, downloadExport, parseImport } from './store.js';
+import {
+  buildTrophyCard,
+  renderProgress,
+  renderRoadmap,
+  renderAbout,
+  trophyMatchesFilters,
+  sortTrophies,
+} from './render.js';
+
+const filters = { kind: 'all', grade: 'all', status: 'all', query: '', sort: 'roadmap' };
+let data = null;
+let state = loadState();
+let earnedIds = new Set(state.earnedIds);
+
+const cardsEl = document.getElementById('cards');
+const emptyEl = document.getElementById('empty-state');
+const resultCountEl = document.getElementById('result-count');
+const saveNoteEl = document.getElementById('save-note');
+
+function persist() {
+  state = { earnedIds: [...earnedIds], spoilerShield: state.spoilerShield };
+  const ok = saveState(state);
+  saveNoteEl.textContent = ok
+    ? 'Progress is saved in this browser on this device.'
+    : 'This browser refused to save (storage off or full) — export your progress to keep it.';
 }
 
-function render() {
-  rows.replaceChildren();
-  for (const t of doc.trophies) {
-    if (grade.value !== 'all' && t.grade !== grade.value) continue;
-    const tr = document.createElement('tr');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = earned.has(t.name);
-    box.addEventListener('change', () => {
-      if (box.checked) earned.add(t.name);
-      else earned.delete(t.name);
-      save();
-      render();
-    });
-    const cells = [box, `${t.name}\n${t.description}`, t.grade, t.guide];
-    for (const c of cells) {
-      const td = document.createElement('td');
-      if (typeof c === 'string') td.textContent = c;
-      else td.append(c);
-      tr.append(td);
-    }
-    rows.append(tr);
+function toggleEarned(id) {
+  if (earnedIds.has(id)) earnedIds.delete(id);
+  else earnedIds.add(id);
+  persist();
+  renderAll();
+}
+
+function renderChecklist() {
+  const visible = sortTrophies(
+    data.trophies.filter((t) => trophyMatchesFilters(t, filters, earnedIds)),
+    filters.sort,
+  );
+  cardsEl.replaceChildren();
+  for (const trophy of visible) {
+    cardsEl.append(buildTrophyCard(trophy, state, earnedIds, toggleEarned));
   }
-  document.getElementById('progress').textContent = `${earned.size} of ${doc.trophies.length} earned`;
+  resultCountEl.textContent = `Showing ${visible.length} of ${data.trophies.length} trophies`;
+  if (visible.length === 0) {
+    emptyEl.hidden = false;
+    emptyEl.textContent = filters.kind === 'online'
+      ? 'The official PlayStation 5 list has no online trophies — every one of the 55 is single-player. Pick another kind to keep browsing.'
+      : 'No trophy matches these filters. Loosen the search or pick another kind.';
+  } else {
+    emptyEl.hidden = true;
+  }
 }
 
-document.getElementById('export').addEventListener('click', () => {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify([...earned])], { type: 'application/json' }));
-  a.download = 'trophy-progress.json';
-  a.click();
+function renderAll() {
+  renderProgress(data, earnedIds);
+  renderChecklist();
+  renderRoadmap(document.getElementById('roadmap-stages'), data, state, earnedIds, jumpToTrophy);
+}
+
+function jumpToTrophy(id) {
+  switchView('list');
+  filters.kind = 'all';
+  filters.grade = 'all';
+  filters.status = 'all';
+  filters.query = '';
+  document.getElementById('search').value = '';
+  document.querySelectorAll('#kind-chips .chip').forEach((chip) => {
+    chip.classList.toggle('is-active', chip.dataset.kind === 'all');
+  });
+  document.getElementById('grade-filter').value = 'all';
+  document.getElementById('status-filter').value = 'all';
+  renderChecklist();
+  const card = cardsEl.querySelector(`[data-trophy-id="${id}"]`);
+  if (card) {
+    card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 1600);
+  }
+}
+
+function switchView(name) {
+  for (const view of ['list', 'roadmap', 'about']) {
+    document.getElementById(`view-${view}`).hidden = view !== name;
+    document.getElementById(`tab-${view}`).classList.toggle('is-active', view === name);
+  }
+}
+
+function wireControls() {
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchView(tab.dataset.view));
+  });
+  document.getElementById('search').addEventListener('input', (event) => {
+    filters.query = event.target.value.trim().toLowerCase();
+    renderChecklist();
+  });
+  document.querySelectorAll('#kind-chips .chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      filters.kind = chip.dataset.kind;
+      document.querySelectorAll('#kind-chips .chip').forEach((c) => {
+        c.classList.toggle('is-active', c === chip);
+      });
+      renderChecklist();
+    });
+  });
+  document.getElementById('grade-filter').addEventListener('change', (event) => {
+    filters.grade = event.target.value;
+    renderChecklist();
+  });
+  document.getElementById('status-filter').addEventListener('change', (event) => {
+    filters.status = event.target.value;
+    renderChecklist();
+  });
+  document.getElementById('sort-order').addEventListener('change', (event) => {
+    filters.sort = event.target.value;
+    renderChecklist();
+  });
+  const shield = document.getElementById('spoiler-shield');
+  shield.checked = state.spoilerShield === true;
+  shield.addEventListener('change', () => {
+    state.spoilerShield = shield.checked;
+    persist();
+    renderAll();
+  });
+  document.getElementById('export-progress').addEventListener('click', () => {
+    downloadExport(state, data.trophies);
+  });
+  document.getElementById('import-progress').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const ids = parseImport(await file.text(), data.trophies);
+    if (ids === null) {
+      saveNoteEl.textContent = 'That file does not look like trophy progress — nothing was imported.';
+      return;
+    }
+    earnedIds = ids;
+    persist();
+    renderAll();
+    saveNoteEl.textContent = `Imported progress: ${ids.size} trophies marked earned.`;
+  });
+  document.getElementById('reset-progress').addEventListener('click', () => {
+    earnedIds = new Set();
+    persist();
+    renderAll();
+  });
+}
+
+async function boot() {
+  const response = await fetch('data/trophies.json');
+  data = await response.json();
+  renderAbout(document.getElementById('about-body'), data);
+  wireControls();
+  renderAll();
+}
+
+boot().catch((error) => {
+  emptyEl.hidden = false;
+  emptyEl.textContent = `The guide data could not be loaded (${error.message}). Serve this folder with any static file server and reload.`;
 });
-document.getElementById('import').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  earned = new Set(JSON.parse(await file.text()));
-  save();
-  render();
-});
-grade.addEventListener('change', render);
-render();
