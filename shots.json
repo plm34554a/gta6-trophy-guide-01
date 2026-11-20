@@ -1,5 +1,1 @@
-[
-  { "file": "1-checklist.jpg", "path": "/", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "2-silver.jpg", "path": "/", "grade": "silver", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "3-bronze.jpg", "path": "/", "grade": "bronze", "scroll": 1400, "viewport": { "width": 1280, "height": 800 } }
-]
+[{"file":"1-checklist.jpg","path":"/","view":"checklist scrolled to The Shootist with its guide and sources open, earned trophies ticked","viewport":{"height":800,"width":1280}},{"file":"2-roadmap.jpg","path":"/","view":"platinum roadmap, step 1 with the missable trophy chip flagged","viewport":{"height":800,"width":1280}},{"file":"3-silver.jpg","grade":"silver","path":"/","view":"hero with progress ring and grade counts, missable alert, filters with grade set to silver","viewport":{"height":800,"width":1280}},{"file":"4-spoilers.jpg","path":"/","view":"spoiler shield on: earned story trophies revealed, unearned ones hidden","viewport":{"height":800,"width":1280}}]
